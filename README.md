@@ -1,4 +1,4 @@
-my version of netcat, not unix version port.
+my version of netcat, not unix version port. this means some anti virus program will not block it.
 # WinCat
 
 ## Usage
