@@ -1,3 +1,4 @@
+my version of netcat, not unix version port.
 # WinCat
 
 ## Usage
