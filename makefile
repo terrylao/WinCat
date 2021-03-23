@@ -8,7 +8,7 @@
 # 1) vcvarsall x86
 # 2) nmake
 
-APPNAME = wnc
+APPNAME = wc
 
 CONSOLE_APP = /SUBSYSTEM:CONSOLE
 GUI_APP = /SUBSYSTEM:WINDOWS
