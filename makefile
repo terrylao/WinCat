@@ -1,14 +1,7 @@
-# Author: Thomas Daley
-# Date: September 16, 2016
-# Purpose: Basic Build Template for Windows Programs.
-#
-# Note: Microsoft Visual C++ Build Tools are assumed to be installed and 
-# added to PATH.
-#
 # 1) vcvarsall x86
 # 2) nmake
 
-APPNAME = wc
+APPNAME = wnc
 
 CONSOLE_APP = /SUBSYSTEM:CONSOLE
 GUI_APP = /SUBSYSTEM:WINDOWS
@@ -34,7 +27,6 @@ all: build
 build: objects
 	$(CC) $(CFLAGS) /Fe$(APPNAME) $(INCS) *.obj $(LIBS) $(LFLAGS) $(CONSOLE_APP)
 	DEL *.obj
-	MOVE /Y $(APPNAME).exe bin/$(APPNAME).exe
 
 daemonize: objectC
 	$(CC) $(CFLAGS) /Fe daemonize $(INCS) *.obj $(LIBS) $(LFLAGS) $(CONSOLE_APP)
@@ -54,19 +46,19 @@ service: SERVICEC
 	DEL *.obj
 	MOVE /Y WinNCService.exe bin/WinNCService.exe
 # Build object files
-objects:	src/main.cc src/otp.cc src/WjCryptLib_Sha1.cc src/server.cc src/client.cc src/scan.cc src/udpserver.cc src/options.cc src/pipes.cc src/WinCat.cc src/AsyncStreamReader.cc
+objects:	main.cc otp.cc WjCryptLib_Sha1.cc server.cc client.cc scan.cc udpserver.cc options.cc pipes.cc WinCat.cc AsyncStreamReader.cc
 	$(CC) $(CFLAGS) /c $(INCS) $(CFLAGS) $?	
 
-objectC:	src/daemonize.c
+objectC:	daemonize.c
 	$(CC) $(CFLAGS) /c $(INCS) $(CFLAGS) $?
 	
-HelloC:	src/hello.c
+HelloC:	hello.c
 	$(CC) $(CFLAGS) /c $(INCS) $(CFLAGS) $?
 	
-OTPC:	src/OTPGenerator.cc src/otp.cc src/WjCryptLib_Sha1.cc
+OTPC:	OTPGenerator.cc otp.cc WjCryptLib_Sha1.cc
 	$(CC) $(CFLAGS) /c $(INCS) $(CFLAGS) $?
 
-SERVICEC: src/WinNCService.cc  src/otp.cc src/WjCryptLib_Sha1.cc src/server.cc src/client.cc src/scan.cc src/udpserver.cc src/options.cc src/pipes.cc src/WinCat.cc src/AsyncStreamReader.cc
+SERVICEC: WinNCService.cc  otp.cc WjCryptLib_Sha1.cc server.cc client.cc scan.cc udpserver.cc options.cc pipes.cc WinCat.cc AsyncStreamReader.cc
 	$(CC) $(CFLAGS) /c $(INCS) $(CFLAGS) $?
 	
 # Clean any leftover build files and executables
