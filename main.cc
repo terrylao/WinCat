@@ -4,6 +4,7 @@
 */
 #include "options.h"
 #include "server.h"
+#include "udpserver.h"
 #include "client.h"
 #include "scan.h"
 #include "otp.h"
@@ -13,11 +14,14 @@
 #include <String.h>
 #include <windows.h>
 #include <tchar.h>
-
+/*
+wnc -l -k -U -P KKK -e "cmd" 8118
+wnc -U -P 802163 127.0.0.1 8118
+*/
 #define DEBUG 1
 #define MAX_LINE 4096
 
-const char *version = "WinNetCat - v2.1  by  TerryLao\n";
+const char *version = "WinNetCat - v3.0  by  TerryLao\n";
 
 const char *about = "A simple TCP/IP network debugging utility for Windows.\n"
                     "Inspired by the traditional nc we all know and love.\n";
@@ -25,7 +29,7 @@ const char *about = "A simple TCP/IP network debugging utility for Windows.\n"
 const char *usage = "usage: wnc [-lakszrwechvtmT] [host] [port]\n";
 
 const char *details =
-                    "   l              Listen for incoming connections. It is an error to\n"
+                    "   l              Listen TCP for incoming connections. It is an error to\n"
                     "                  use this option with a host specified.\n"
                     "\n"
                     "   a              combine with l , can accept only connection which came from.\n"
@@ -71,6 +75,12 @@ const char *details =
                     "                  to use this option with -e, -s, or -z.\n"
                     "                  e.g.    host A (10.0.0.2)>  wnc -l -c \"dir\" 8118\n"
                     "                          host B (10.0.0.3)>  wnc 10.0.0.2 8118\n"
+                    "\n"
+                    "   U           udp client Mode : wnc -U 10.0.0.2 8118\n"
+                    "\n"
+                    "   B           udp client Mode BroadCast : wnc -B 172.30.255.255 8118\n"
+                    "\n"
+                    "   M           udp client Mode MultiCast : wnc -M 239.255.255.250 8118\n"
                     "\n"
                     "   w n           client Mode Connect Send and Receive will: \n"
                     "                 0:close immediatly greater than wait for timeout, \n"
@@ -164,15 +174,21 @@ int main(int argc, char **argv)
                         if (opt_count('e')) fprintf(stderr, "-e %s\n", opt_arg('e'));
                         if (opt_count('c')) fprintf(stderr, "-c %s\n", opt_arg('c'));
                         if (opt_count('a')) fprintf(stderr, "-a %s\n", opt_arg('a'));
+												if (opt_count('P')) fprintf(stderr, "-P %s\n", opt_arg('P'));
                         if (opt_count('v')) fprintf(stderr, "-v on\n");
-                        if (opt_count('D')) fprintf(stderr, "-k\n");
+												if (opt_count('U')) fprintf(stderr, "-U\n");
+                        if (opt_count('k')) fprintf(stderr, "-k\n");
                         fprintf(stderr, "port: %s\n", argv[argind]);
                     }
                     if (opt_count('D')) {
                       FreeConsole();
                     }
                     if (opt_count('e')) {
-                        return server(argv[argind], opt_arg('e'), opt_count('k') ? 1 : 0, opt_arg('a'));
+											if (opt_count('U')){
+												return udpserver(argv[argind], opt_arg('e'), opt_count('k') ? 1 : 0, opt_arg('a'),opt_arg('P'));
+											}else{
+												return server(argv[argind], opt_arg('e'), opt_count('k') ? 1 : 0, opt_arg('a'),opt_arg('P'));
+											}
                     } 
 
                     if (opt_count('c')) {
@@ -181,13 +197,27 @@ int main(int argc, char **argv)
                         if (opt_arg('c')){
                             memcpy(command, "cmd /c ", 7);
                             memcpy(command+7, opt_arg('c'), strlen(opt_arg('c')));
-                            return server(argv[argind], command, opt_count('k') ? 1 : 0, opt_arg('a'));
+														if (opt_count('U')){
+															return udpserver(argv[argind], command, opt_count('k') ? 1 : 0, opt_arg('a'),opt_arg('P'));
+														}else{
+															return server(argv[argind], command, opt_count('k') ? 1 : 0, opt_arg('a'),opt_arg('P'));
+														}
+                            
                         }else{
                             memcpy(command, "cmd /c ", 7);
-                            return server(argv[argind], command, opt_count('k') ? 1 : 0, opt_arg('a'));
+														if (opt_count('U')){
+															return udpserver(argv[argind], command, opt_count('k') ? 1 : 0, opt_arg('a'),opt_arg('P'));
+														}else{
+															return server(argv[argind], command, opt_count('k') ? 1 : 0, opt_arg('a'),opt_arg('P'));
+														}
                         }
                     }
-                    return server(argv[argind], NULL, opt_count('k') ? 1 : 0,opt_arg('a'));
+										if (opt_count('U')){
+											return udpserver(argv[argind], NULL, opt_count('k') ? 1 : 0,opt_arg('a'),opt_arg('P'));
+										}else{
+											return server(argv[argind], NULL, opt_count('k') ? 1 : 0,opt_arg('a'),opt_arg('P'));
+										}
+                    
                 }
             case 's':
                 {
@@ -231,6 +261,7 @@ int main(int argc, char **argv)
                 }
             case 'h': 
                 return print_help();
+								
             case 'c':
                 {
                     if (opt_count('e') || opt_count('z') || opt_count('s')) return print_usage();
@@ -248,7 +279,12 @@ int main(int argc, char **argv)
                         char command[MAX_LINE+1] = {0};
                         memcpy(command, "cmd /c ", 7);
                         memcpy(command+7, opt_arg('c'), strlen(opt_arg('c')));
-                        return client(argv[argind], argv[argind+1], command,NULL);
+												if (opt_arg('U')){
+													return udpclient(argv[argind], argv[argind+1], command,NULL,opt_arg('P'));
+												}else{
+													return client(argv[argind], argv[argind+1], command,NULL,opt_arg('P'));
+												}
+                        
                     }
 
                 }
@@ -266,8 +302,12 @@ int main(int argc, char **argv)
                             fprintf(stderr, "-e arg: %s\n", opt_arg('e'));
                             fprintf(stderr, "host: %s\nport: %s\n", argv[argind], argv[argind+1]);
                         }
-
-                        return client(argv[argind], argv[argind+1], opt_arg('e'),NULL);
+												if (opt_arg('U')){
+													return udpclient(argv[argind], argv[argind+1], opt_arg('e'),NULL,opt_arg('P'));
+												}else{
+													return client(argv[argind], argv[argind+1], opt_arg('e'),NULL,opt_arg('P'));
+												}
+                        
                     }
                 }
                 break;
@@ -282,6 +322,9 @@ int main(int argc, char **argv)
               portscan(argv[argind], argv[argind+1], portscantimeout);
               return 1;
             }
+						case 'P':
+							argind += opt_arg('P')? 1 : 0;
+							break;
             case 't':
             case 'T':
             case 'm':
@@ -380,6 +423,15 @@ int main(int argc, char **argv)
                     }
                 }
             }
+						case 'v':
+						{
+							verbose=1;
+							break;
+						}
+						case 'U':
+						{
+							break;
+						}
             default:
                 if (DEBUG) fprintf(stderr, "? -%c\n", opt);
                 break;
@@ -389,7 +441,12 @@ int main(int argc, char **argv)
     /* No options specified - client connect */
     if (argind >= argc-1)  {return print_usage();}
     if (DEBUG) fprintf(stderr, "host: %s\nport: %s\n", argv[argind], argv[argind+1]);
-    return client(argv[argind], argv[argind+1], NULL,NULL);
+		if (opt_arg('U')){
+			return udpclient(argv[argind], argv[argind+1], NULL,NULL,opt_arg('P'));
+		}else{
+			return client(argv[argind], argv[argind+1], NULL,NULL,opt_arg('P'));
+		}
+    
 }
 
 //int main(int argc1, char **argv1){
