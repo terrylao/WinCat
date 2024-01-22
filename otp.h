@@ -12,7 +12,7 @@
 #include <windows.h>
 #include <stdio.h>
 
-int genOTP(char *output1,char *output2,char *output3);
-int checkOTP(char *input);
+int genOTP(char *output1,char *output2,char *output3,char* akey);
+int checkOTP(char *input,char* akey);
 
 #endif /* SCAN_H */
