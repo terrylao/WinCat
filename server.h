@@ -17,6 +17,6 @@
 
 int server(char *port, 
            char *filename, 
-           int keep_listening, char *restrictip);
+           int keep_listening, char *restrictip, char *akey);
 void closeserver();
 #endif /* SERVER_H */
