@@ -2,8 +2,8 @@
   publish with BSD Licence.
 	Copyright (c) Terry Lao
 */
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef UDPSERVER_H
+#define UDPSERVER_H
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -17,6 +17,6 @@
 
 int udpserver(char *port, 
            char *filename, 
-           int keep_listening, char *restrictip);
+           int keep_listening, char *restrictip, char *akey);
 
 #endif /* SERVER_H */
