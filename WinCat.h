@@ -15,17 +15,19 @@ class WinCat {
         AsyncStreamReader *input = NULL;
         FILE *output;
         struct PipeHandles pipes;
-        int launched,udpsocket;
+        int launched,udpsocket,otppass,udpAddrSize;
         char *filename;
         char *myrestrictip;
+				char key[33];
         int Launch();
-
+				struct sockaddr_in udpAddr;
     public:
         WinCat(char *filename);
         ~WinCat();
         int Process(SOCKET ClientSocket);
         int SyncProcess(SOCKET ClientSocket);
-        void setUdp(char * restrictip);
+        void setUdp(char * restrictip,struct sockaddr_in audpAddr);
+				void setOTP(char* akey);
         
 };
 
