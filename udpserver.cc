@@ -8,7 +8,7 @@
 #include <io.h>
 #include <fcntl.h>
 #define DEBUG 1
-int udpserver(char *port, char *filename, int keep_listening, char *restrictip) {
+int udpserver(char *port, char *filename, int keep_listening, char *restrictip, char *akey) {
     WSADATA wsaData;
     int iResult;
     int err;
@@ -17,12 +17,9 @@ int udpserver(char *port, char *filename, int keep_listening, char *restrictip) 
     msgbuf [0] = '\0';    // Microsoft doesn't guarantee this on man page.
     
     SOCKET ListenSocket = INVALID_SOCKET;
-    SOCKET ClientSocket = INVALID_SOCKET;
     
-    struct sockaddr_in server,client_info = {0};
-    int addrsize = sizeof(client_info);
-    
-    
+    struct sockaddr_in serverAddr,clientAddr;
+
     /* Initialize Winsock */
     iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (iResult != 0) {
@@ -34,7 +31,7 @@ int udpserver(char *port, char *filename, int keep_listening, char *restrictip) 
         printverbose();
         fprintf(stderr, "restrictip from: %s\n",  restrictip);
     }
-    /* Create a SOCKET for connecting to server */
+    /* create UDP socket */
     ListenSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (ListenSocket == INVALID_SOCKET) {
         err = WSAGetLastError ();
@@ -53,11 +50,11 @@ int udpserver(char *port, char *filename, int keep_listening, char *restrictip) 
         WSACleanup();
         return 1;
     }
-		server.sin_family = AF_INET;
-		server.sin_addr.s_addr = INADDR_ANY;
-		server.sin_port = htons( atoi(port) );
-    /* Setup the TCP listening socket */
-    iResult = bind( ListenSocket, (struct sockaddr *)&server, sizeof(server));
+		serverAddr.sin_family = AF_INET;
+		serverAddr.sin_addr.s_addr = INADDR_ANY;
+		serverAddr.sin_port = htons( atoi(port) );
+    /* Setup the UDP listening socket */
+    iResult = bind( ListenSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
     if (iResult == SOCKET_ERROR) {
         if (verbose) {
             printverbose();
@@ -75,24 +72,25 @@ int udpserver(char *port, char *filename, int keep_listening, char *restrictip) 
             printverbose();
             fprintf(stderr, "Bind failed with error: %d,%s\n",  err,msgbuf);
         }
-        if (DEBUG)
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
     }
     WinCat *wincat =new WinCat(filename);
+		if (akey!=NULL)
+			wincat->setOTP(akey);
     if (filename!=NULL&&memcmp(filename,"cmd /c ",7)==0){
         singlecmd=1;
         fprintf(stderr, "Single CMD Mode\n");
     }else{
-        fprintf(stderr, "Server Mode\n");
+        fprintf(stderr, "UDPServer Mode\n");
     }
-		wincat->setUdp(restrictip);
+		wincat->setUdp(restrictip,clientAddr);
     do {
         if (singlecmd==1){
-            wincat->SyncProcess(ClientSocket);
+            wincat->SyncProcess(ListenSocket);
         }else{
-            wincat->Process(ClientSocket);
+            wincat->Process(ListenSocket);
         }
     } while (keep_listening);
     
@@ -120,7 +118,6 @@ int udpserver(char *port, char *filename, int keep_listening, char *restrictip) 
     
     /* Cleanup */
     delete wincat;
-    closesocket(ClientSocket);
     WSACleanup();
     return 0;
 }
