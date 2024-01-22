@@ -186,7 +186,7 @@ int portscan(char *host, char *port,int ctimeout) {
     WSACleanup();
     return 0;
 }
-int client(char *host, char *port, char *filename,char *mesg) {
+int client(char *host, char *port, char *filename,char *mesg, char* otp) {
     WSADATA wsaData;
     SOCKET ConnectSocket = INVALID_SOCKET;
     struct addrinfo *result = NULL,
@@ -202,8 +202,8 @@ int client(char *host, char *port, char *filename,char *mesg) {
     /* Initialize Winsock */
     iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (iResult != 0) {
-        fprintf(stderr, "WSAStartup failed with error: %d\n", iResult);
-        return 1;
+      fprintf(stderr, "WSAStartup failed with error: %d\n", iResult);
+      return 1;
     }
     ZeroMemory( &hints, sizeof(hints) );
     hints.ai_family = AF_UNSPEC;
@@ -212,71 +212,17 @@ int client(char *host, char *port, char *filename,char *mesg) {
     /* Resolve the server address and port */
     iResult = getaddrinfo(host, port, &hints, &result);
     if ( iResult != 0 ) {
-        fprintf(stderr, "Unable to resolve host and/or port.\n");
-        if (DEBUG) fprintf(stderr, "Getaddrinfo failed with error: %d\n", iResult);
-        WSACleanup();
-        return 1;
+      fprintf(stderr, "Unable to resolve host and/or port.\n");
+      if (DEBUG) fprintf(stderr, "Getaddrinfo failed with error: %d\n", iResult);
+      WSACleanup();
+      return 1;
     }
     /* Attempt to connect to an address until one succeeds */
     for(ptr=result; ptr != NULL ;ptr=ptr->ai_next) {
-        /* Create a SOCKET for connecting to server */
-        ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, 
-            ptr->ai_protocol);
-        if (ConnectSocket == INVALID_SOCKET) {
-            err = WSAGetLastError ();
-            FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,   // flags
-                           NULL,                // lpsource
-                           err,                 // message id
-                           MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),    // languageid
-                           msgbuf,              // output buffer
-                           sizeof (msgbuf),     // size of msgbuf, bytes
-                           NULL);               // va_list of arguments
-            if (DEBUG) {
-                fprintf(stderr, "Socket failed with error: %ld,%s\n",  err,msgbuf);
-            }
-            WSACleanup();
-            return 1;
-        }
-        /* Connect to server */
-        //iResult = connect( ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
-        iResult = connect_timeout( ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen,3);
-        if (iResult < 0) {
-            closesocket(ConnectSocket);
-            ConnectSocket = INVALID_SOCKET;
-            continue;
-        }
-        break;
-    }
-    freeaddrinfo(result);
-    if (ConnectSocket == INVALID_SOCKET) {
-        fprintf(stderr, "Unable to connect to host.\n");
-        WSACleanup();
-        return 1;
-    }else{
-        getpeername(ConnectSocket, (struct sockaddr *)&client_info, &addrsize);
-        char *ip = inet_ntoa(client_info.sin_addr);
-        fprintf(stderr, "connected to host %s.\n",ip);
-    }
-    if (mesg!=NULL){
-        ULONGLONG NTickInitial,NTickShowEnd;
-        char recvbuf[DEFAULT_BUFLEN];
-        memset(recvbuf, '\0', DEFAULT_BUFLEN);
-        NTickInitial=GetTickCount64();
-        int iResult = send(ConnectSocket, mesg, strlen(mesg), 0);
-        iResult = recv(ConnectSocket, recvbuf, DEFAULT_BUFLEN, 0);
-        NTickShowEnd= GetTickCount64();
-        fprintf(stderr, "reply %s in $llu ms\n",  recvbuf,NTickShowEnd-NTickInitial);
-        iResult = shutdown(ConnectSocket, SD_BOTH);
-        closesocket(ConnectSocket);
-        WSACleanup();
-        return 1;
-    }
-    /* Where the magic happens */
-    WinCat *wincat = new WinCat(filename);
-    wincat->Process(ConnectSocket);
-    /* Shut down the connection since we're done */
-    iResult = shutdown(ConnectSocket, SD_BOTH);
-    if (iResult == SOCKET_ERROR) {
+      /* Create a SOCKET for connecting to server */
+      ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, 
+          ptr->ai_protocol);
+      if (ConnectSocket == INVALID_SOCKET) {
         err = WSAGetLastError ();
         FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,   // flags
                        NULL,                // lpsource
@@ -286,11 +232,84 @@ int client(char *host, char *port, char *filename,char *mesg) {
                        sizeof (msgbuf),     // size of msgbuf, bytes
                        NULL);               // va_list of arguments
         if (DEBUG) {
-            fprintf(stderr, "Shutdown failed with error: %ld,%s\n",  err,msgbuf);
+            fprintf(stderr, "Socket failed with error: %ld,%s\n",  err,msgbuf);
         }
-        closesocket(ConnectSocket);
         WSACleanup();
         return 1;
+      }
+      /* Connect to server */
+      //iResult = connect( ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
+      iResult = connect_timeout( ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen,3);
+      if (iResult < 0) {
+        closesocket(ConnectSocket);
+        ConnectSocket = INVALID_SOCKET;
+        continue;
+      }
+      break;
+    }
+    freeaddrinfo(result);
+    if (ConnectSocket == INVALID_SOCKET) {
+      fprintf(stderr, "Unable to connect to host.\n");
+      WSACleanup();
+      return 1;
+    }else{
+      getpeername(ConnectSocket, (struct sockaddr *)&client_info, &addrsize);
+      char *ip = inet_ntoa(client_info.sin_addr);
+      fprintf(stderr, "connected to host %s.\n",ip);
+    }
+    if (mesg!=NULL){
+      ULONGLONG NTickInitial,NTickShowEnd;
+      char recvbuf[DEFAULT_BUFLEN];
+      memset(recvbuf, '\0', DEFAULT_BUFLEN);
+      NTickInitial=GetTickCount64();
+      int iResult = send(ConnectSocket, mesg, strlen(mesg), 0);
+      iResult = recv(ConnectSocket, recvbuf, DEFAULT_BUFLEN, 0);
+      NTickShowEnd= GetTickCount64();
+      fprintf(stderr, "reply %s in $llu ms\n",  recvbuf,NTickShowEnd-NTickInitial);
+      iResult = shutdown(ConnectSocket, SD_BOTH);
+      closesocket(ConnectSocket);
+      WSACleanup();
+      return 1;
+    }
+		if (otp!=NULL){
+      char recvbuf[DEFAULT_BUFLEN];
+      memset(recvbuf, '\0', DEFAULT_BUFLEN);
+			int iResult = send(ConnectSocket, otp, strlen(otp), 0);
+			iResult = recv(ConnectSocket, recvbuf, DEFAULT_BUFLEN, 0);
+			if (iResult>0){
+				fprintf(stderr, "OTP: %s\n",  recvbuf);
+				if (iResult<3){
+  				closesocket(ConnectSocket);
+  				WSACleanup();
+  				return -3;
+				}
+			}else{
+				closesocket(ConnectSocket);
+				WSACleanup();
+				return -3;
+			}
+			
+		}
+    /* Where the magic happens */
+    WinCat *wincat = new WinCat(filename);
+    wincat->Process(ConnectSocket);
+    /* Shut down the connection since we're done */
+    iResult = shutdown(ConnectSocket, SD_BOTH);
+    if (iResult == SOCKET_ERROR) {
+      err = WSAGetLastError();
+      FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,   // flags
+                     NULL,                // lpsource
+                     err,                 // message id
+                     MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),    // languageid
+                     msgbuf,              // output buffer
+                     sizeof (msgbuf),     // size of msgbuf, bytes
+                     NULL);               // va_list of arguments
+      if (DEBUG) {
+      	fprintf(stderr, "Shutdown failed with error: %ld,%s\n",  err,msgbuf);
+      }
+      closesocket(ConnectSocket);
+      WSACleanup();
+      return 1;
     }
     
     /* Cleanup */
@@ -690,10 +709,10 @@ DWORD WINAPI threadstressclient(LPVOID arg)
     //free(data);
     return 0;
 }
-int udpclient(char *host, char *port, char *filename,char *mesg)
+int udpclient(char *host, char *port, char *filename,char *mesg, char* otp)
 {
-	struct sockaddr_in si_other;
-	int s, slen=sizeof(si_other);
+	struct sockaddr_in server_address;
+	int slen=sizeof(server_address);
 	int iResult;
 	char buf[DEFAULT_BUFLEN];
 	WSADATA wsa;
@@ -707,52 +726,53 @@ int udpclient(char *host, char *port, char *filename,char *mesg)
 	fprintf(stderr, "Initialised.\n");
 	
 	//create socket
-	if ( (s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR)
+	SOCKET clientSocket=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if ( clientSocket == SOCKET_ERROR)
 	{
 		fprintf(stderr, "socket() failed with error code : %d" , WSAGetLastError());
 		return -1;
 	}
 	
 	//setup address structure
-	memset((char *) &si_other, 0, sizeof(si_other));
-	si_other.sin_family = AF_INET;
-	si_other.sin_port = htons(atoi(port));
-	si_other.sin_addr.S_un.S_addr = inet_addr(host);
+	memset((char *) &server_address, 0, sizeof(server_address));
+	server_address.sin_family = AF_INET;
+	server_address.sin_port = htons(atoi(port));
+	server_address.sin_addr.S_un.S_addr = inet_addr(host);
 	
-    if (mesg!=NULL){
-        ULONGLONG NTickInitial,NTickShowEnd;
-        char recvbuf[DEFAULT_BUFLEN];
-        memset(recvbuf, '\0', DEFAULT_BUFLEN);
-        NTickInitial=GetTickCount64();
-		//send the message
-		if (sendto(s, mesg, strlen(mesg) , 0 , (struct sockaddr *) &si_other, slen) == SOCKET_ERROR)
-		{
-			fprintf(stderr,"sendto() failed with error code : %d" , WSAGetLastError());
-			return -1;
-		}
+  if (mesg!=NULL){
+    ULONGLONG NTickInitial,NTickShowEnd;
+    char recvbuf[DEFAULT_BUFLEN];
+    memset(recvbuf, '\0', DEFAULT_BUFLEN);
+    NTickInitial=GetTickCount64();
+  	//send the message
+  	if (sendto(clientSocket, mesg, strlen(mesg) , 0 , (struct sockaddr *) &server_address, slen) == SOCKET_ERROR)
+  	{
+  		fprintf(stderr,"sendto() failed with error code : %d" , WSAGetLastError());
+  		return -1;
+  	}
 		
-		//receive a reply and print it
-		//clear the buffer by filling null, it might have previously received data
-		memset(buf,0, DEFAULT_BUFLEN);
-		//try to receive some data, this is a blocking call
-		if (recvfrom(s, buf, DEFAULT_BUFLEN, 0, (struct sockaddr *) &si_other, &slen) == SOCKET_ERROR)
-		{
-			fprintf(stderr,"recvfrom() failed with error code : %d" , WSAGetLastError());
-			return -1;
-		}
-        NTickShowEnd= GetTickCount64();
-        fprintf(stderr, "reply %s in $llu ms\n",  recvbuf,NTickShowEnd-NTickInitial);
-        closesocket(s);
-        WSACleanup();
-        return 1;
-    }
+  	//receive a reply and print it
+  	//clear the buffer by filling null, it might have previously received data
+  	memset(buf,0, DEFAULT_BUFLEN);
+  	//try to receive some data, this is a blocking call
+  	if (recvfrom(clientSocket, buf, DEFAULT_BUFLEN, 0, (struct sockaddr *) &server_address, &slen) == SOCKET_ERROR)
+  	{
+  		fprintf(stderr,"recvfrom() failed with error code : %d" , WSAGetLastError());
+  		return -1;
+  	}
+    NTickShowEnd= GetTickCount64();
+    fprintf(stderr, "reply %s in $llu ms\n",  recvbuf,NTickShowEnd-NTickInitial);
+    closesocket(clientSocket);
+    WSACleanup();
+    return 1;
+  }
     
-    WinCat *wincat = new WinCat(filename);
-    wincat->setUdp(NULL);
-    wincat->Process(s);
+  WinCat *wincat = new WinCat(filename);
+  wincat->setUdp(NULL,server_address);
+  wincat->Process(clientSocket);
     
-    delete wincat;
-	closesocket(s);
+  delete wincat;
+	closesocket(clientSocket);
 	WSACleanup();
 	return 0;
 }
@@ -764,114 +784,112 @@ int broadcastUDPSender(char *subnet, char *port, char *filename,char *mesg) {
 		return -1;
 	}
  
-    SOCKET sock;
-    sock = socket(AF_INET,SOCK_DGRAM,0);
-    char broadcast = '1';
-    if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast)) < 0)
-    {
-        fprintf(stderr,"Error in setting Broadcast option");
-        closesocket(sock);
-        return -1;
-    }
+  SOCKET sock;
+  sock = socket(AF_INET,SOCK_DGRAM,0);
+  char broadcast = '1';
+  if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST,&broadcast,sizeof(broadcast)) < 0)
+  {
+      fprintf(stderr,"Error in setting Broadcast option");
+      closesocket(sock);
+      return -1;
+  }
  
-    struct sockaddr_in Recv_addr;  
-    struct sockaddr_in Sender_addr;
-    int len = sizeof(struct sockaddr_in);
-    char sendMSG[] ="Broadcast message from SLAVE TAG";
-    char recvbuff[50] = "";
-    int recvbufflen = 50;
+  struct sockaddr_in Recv_addr;  
+  struct sockaddr_in Sender_addr;
+  int len = sizeof(struct sockaddr_in);
+  char recvbuff[DEFAULT_BUFLEN] = "";
+  int recvbufflen = DEFAULT_BUFLEN;
  
-    Recv_addr.sin_family       = AF_INET;        
-    Recv_addr.sin_port         = htons(atoi(port));   
-//  Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST; // this isq equiv to 255.255.255.255
-// better use subnet broadcast (for our subnet is 172.30.255.255)
-    Recv_addr.sin_addr.s_addr = inet_addr(subnet);
-    sendto(sock,sendMSG,strlen(sendMSG)+1,0,(sockaddr *)&Recv_addr,sizeof(Recv_addr));
-    recvfrom(sock,recvbuff,recvbufflen,0,(sockaddr *)&Recv_addr,&len);
-    fprintf(stderr,"\n\n\tReceived message from Reader is => %s\n",recvbuff);
-    fprintf(stderr,"\n\n\tpress any key to CONT...");
-    //_getch();
+  Recv_addr.sin_family       = AF_INET;        
+  Recv_addr.sin_port         = htons(atoi(port));   
+  //  Recv_addr.sin_addr.s_addr  = INADDR_BROADCAST; // this isq equiv to 255.255.255.255
+  // better use subnet broadcast (for our subnet is 172.30.255.255)
+  Recv_addr.sin_addr.s_addr = inet_addr(subnet);
+  sendto(sock,mesg,strlen(mesg)+1,0,(sockaddr *)&Recv_addr,sizeof(Recv_addr));
+  recvfrom(sock,recvbuff,recvbufflen,0,(sockaddr *)&Recv_addr,&len);
+  fprintf(stderr,"\n\n\tReceived message from Reader is => %s\n",recvbuff);
+  fprintf(stderr,"\n\n\tpress any key to CONT...");
+  //_getch();
  
-    closesocket(sock);
-    WSACleanup();
-    return 0;
+  closesocket(sock);
+  WSACleanup();
+  return 0;
 }
 
 int multicastUDPSender(char *group, char *port, char *filename,char *mesg){
-    //if (argc != 3) {
-    //   printf("Command line args should be multicast group and port\n");
-    //   printf("(e.g. for SSDP, `sender 239.255.255.250 1900`)\n");
-    //   return 1;
-    //}
+  //if (argc != 3) {
+  //   printf("Command line args should be multicast group and port\n");
+  //   printf("(e.g. for SSDP, `sender 239.255.255.250 1900`)\n");
+  //   return 1;
+  //}
 
-    //char* group = argv[1]; // e.g. 239.255.255.250 for SSDP
-    //int port = atoi(argv[2]); // 0 if error, which is an invalid port
+  //char* group = argv[1]; // e.g. 239.255.255.250 for SSDP
+  //int port = atoi(argv[2]); // 0 if error, which is an invalid port
 
-    // !!! If test requires, make these configurable via args
-    //
-    const int delay_secs = 1;
-    const char *message = "Hello, World!";
-
-#ifdef _WIN32
-    //
-    // Initialize Windows Socket API with given VERSION.
-    //
-    WSADATA wsaData;
-    if (WSAStartup(0x0101, &wsaData)) {
-        perror("WSAStartup");
-        return 1;
-    }
-#endif
-
-    // create what looks like an ordinary UDP socket
-    //
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
-        perror("socket");
-        return 1;
-    }
-
-    // set up destination address
-    //
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(group);
-    addr.sin_port = htons(atoi(port));
-
-      // now just sendto() our destination!
-    //
-    while (1) {
-        char ch = 0;
-        int nbytes = sendto(
-            fd,
-            message,
-            strlen(message),
-            0,
-            (struct sockaddr*) &addr,
-            sizeof(addr)
-        );
-        if (nbytes < 0) {
-            perror("sendto");
-            return 1;
-        }
-
-     #ifdef _WIN32
-          Sleep(delay_secs * 1000); // Windows Sleep is milliseconds
-     #else
-          sleep(delay_secs); // Unix sleep is seconds
-     #endif
-     }
+  // !!! If test requires, make these configurable via args
+  //
+  const int delay_secs = 1;
 
 #ifdef _WIN32
-    //
-    // Program never actually gets here due to infinite loop that has to be
-    // canceled, but since people on the internet wind up using examples
-    // they find at random in their own code it's good to show what shutting
-    // down cleanly would look like.
-    //
-    WSACleanup();
+  //
+  // Initialize Windows Socket API with given VERSION.
+  //
+  WSADATA wsaData;
+  if (WSAStartup(0x0101, &wsaData)) {
+    perror("WSAStartup");
+    return 1;
+  }
 #endif
 
-    return 0;
+// create what looks like an ordinary UDP socket
+  //
+  int fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (fd < 0) {
+    perror("socket");
+    return 1;
+  }
+
+  // set up destination address
+  //
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = inet_addr(group);
+  addr.sin_port = htons(atoi(port));
+
+    // now just sendto() our destination!
+  //
+  while (1) {
+    char ch = 0;
+    int nbytes = sendto(
+        fd,
+        mesg,
+        strlen(mesg),
+        0,
+        (struct sockaddr*) &addr,
+        sizeof(addr)
+    );
+    if (nbytes < 0) {
+        perror("sendto");
+        return 1;
+    }
+
+   #ifdef _WIN32
+   	Sleep(delay_secs * 1000); // Windows Sleep is milliseconds
+   #else
+   	sleep(delay_secs); // Unix sleep is seconds
+   #endif
+   }
+
+#ifdef _WIN32
+  //
+  // Program never actually gets here due to infinite loop that has to be
+  // canceled, but since people on the internet wind up using examples
+  // they find at random in their own code it's good to show what shutting
+  // down cleanly would look like.
+  //
+  WSACleanup();
+#endif
+
+  return 0;
 }
