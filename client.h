@@ -27,7 +27,7 @@ struct Thread_data
 int client(char *host, 
            char *port, 
            char *filename,
-           char *mesg);
+           char *mesg, char* otp);
 int stressclient(char *host, 
            char *port, 
            char *filename,
@@ -37,6 +37,6 @@ DWORD WINAPI threadstressclient(LPVOID arg);
 int udpclient(char *host, 
            char *port, 
            char *filename,
-           char *mesg);
+           char *mesg, char* otp);
 int portscan(char *host, char *port,int ctimeout);
 #endif /* CLIENT_H */
