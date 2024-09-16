@@ -18,7 +18,7 @@ void closeserver(){
 DWORD WINAPI ListenClock(LPVOID arg)
 {
   //Sleep(5* 60 * 1000);// five minutes
-  Sleep(15 * 1000);
+  Sleep(30 * 1000);
   int* listenSocket=(int*)arg;
   fprintf(stderr, "ListenClock %d,%d\n",*listenSocket,hasAction);
   if (hasAction==0){
