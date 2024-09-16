@@ -29,7 +29,7 @@ const char *about = "A simple TCP/IP network debugging utility for Windows.\n"
 const char *usage = "usage: wnc [-lakszrwechvtmT] [host] [port]\n";
 
 const char *details =
-                    "   l              Listen TCP for incoming connections. It is an error to\n"
+                    "   l              Listen TCP for incoming connections within 30s. It is an error to\n"
                     "                  use this option with a host specified.\n"
                     "\n"
                     "   a              combine with l , can accept only connection which came from.\n"
